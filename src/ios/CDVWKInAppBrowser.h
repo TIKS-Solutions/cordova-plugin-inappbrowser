@@ -53,6 +53,7 @@
     @private
     CDVInAppBrowserOptions *_browserOptions;
     NSDictionary *_settings;
+    CDVWKInAppBrowser *_inAppBrowser;
 }
 
 @property (nonatomic, strong) IBOutlet WKWebView* webView;
@@ -69,7 +70,7 @@
 @property (nonatomic, weak) CDVWKInAppBrowser* navigationDelegate;
 @property (nonatomic) NSURL* currentURL;
 
-- (void)close;
+- (void)close:(BOOL)force;
 - (void)navigateTo:(NSURL*)url;
 - (void)showLocationBar:(BOOL)show;
 - (void)showToolBar:(BOOL)show : (NSString *) toolbarPosition;

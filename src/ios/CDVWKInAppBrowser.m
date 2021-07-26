@@ -703,12 +703,13 @@ static CDVWKInAppBrowser* instance = nil;
 CGFloat lastReducedStatusBarHeight = 0.0;
 BOOL isExiting = FALSE;
 
-- (id)initWithBrowserOptions: (CDVInAppBrowserOptions*) browserOptions andSettings:(NSDictionary *)settings
+- (id)initWithBrowserOptions: (CDVInAppBrowserOptions*) browserOptions andSettings:(NSDictionary *)settings andInstance:(CDVWKInAppBrowser *) inAppBrowser
 {
     self = [super init];
     if (self != nil) {
         _browserOptions = browserOptions;
         _settings = settings;
+        _inAppBrowser = inAppBrowser;
         self.webViewUIDelegate = [[CDVWKInAppBrowserUIDelegate alloc] initWithTitle:[[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleDisplayName"]];
         [self.webViewUIDelegate setViewController:self];
         
@@ -1089,7 +1090,7 @@ BOOL isExiting = FALSE;
 
 - (void)close:(BOOL)force
 {
-    if (!browserOptions.overrideexit || force) {
+    if (!_browserOptions.overrideexit || force) {
         self.currentURL = nil;
 
         __weak UIViewController* weakSelf = self;
@@ -1105,12 +1106,12 @@ BOOL isExiting = FALSE;
             }
         });
     } else {
-        if (self.callbackId != nil) {
+        if (_inAppBrowser.callbackId != nil) {
             CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK
                                                           messageAsDictionary:@{@"type":@"exit"}];
             [pluginResult setKeepCallback:[NSNumber numberWithBool:YES]];
 
-            [self.commandDelegate sendPluginResult:pluginResult callbackId:self.callbackId];
+            [_inAppBrowser.commandDelegate sendPluginResult:pluginResult callbackId:_inAppBrowser.callbackId];
         }
     }
 }

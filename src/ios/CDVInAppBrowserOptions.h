@@ -44,6 +44,7 @@
 @property (nonatomic, assign) BOOL hidden;
 @property (nonatomic, assign) BOOL disallowoverscroll;
 @property (nonatomic, copy) NSString* beforeload;
+@property (nonatomic, assign) BOOL overrideexit;
 
 + (CDVInAppBrowserOptions*)parseOptions:(NSString*)options;
 
