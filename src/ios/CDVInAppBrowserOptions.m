@@ -46,6 +46,7 @@
         self.toolbartranslucent = YES;
         self.beforeload = @"";
         self.overrideexit = NO;
+        self.darkmode = NO;
     }
 
     return self;
