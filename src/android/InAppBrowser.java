@@ -126,6 +126,7 @@ public class InAppBrowser extends CordovaPlugin {
     private static final String FOOTER_COLOR = "footercolor";
     private static final String BEFORELOAD = "beforeload";
     private static final String FULLSCREEN = "fullscreen";
+    private static final String OVERRIDE_EXIT = "overrideexit";
 
     private static final List customizableOptions = Arrays.asList(CLOSE_BUTTON_CAPTION, TOOLBAR_COLOR, NAVIGATION_COLOR, CLOSE_BUTTON_COLOR, FOOTER_COLOR);
 
@@ -158,6 +159,7 @@ public class InAppBrowser extends CordovaPlugin {
     private boolean fullscreen = true;
     private String[] allowedSchemes;
     private InAppBrowserClient currentClient;
+    private boolean overrideExit = false;
 
     private static final int REQ_CAMERA_SEC = 1;
     private String applicationId;
@@ -269,7 +271,7 @@ public class InAppBrowser extends CordovaPlugin {
             });
         }
         else if (action.equals("close")) {
-            closeDialog();
+            closeDialog(true);
         }
         else if (action.equals("loadAfterBeforeload")) {
             if (beforeload == null) {
@@ -335,7 +337,8 @@ public class InAppBrowser extends CordovaPlugin {
             });
             PluginResult pluginResult = new PluginResult(PluginResult.Status.OK);
             pluginResult.setKeepCallback(true);
-            this.callbackContext.sendPluginResult(pluginResult);
+            if(this.callbackContext != null) 
+                this.callbackContext.sendPluginResult(pluginResult);
         }
         else if (action.equals("hide")) {
             this.cordova.getActivity().runOnUiThread(new Runnable() {
@@ -348,7 +351,8 @@ public class InAppBrowser extends CordovaPlugin {
             });
             PluginResult pluginResult = new PluginResult(PluginResult.Status.OK);
             pluginResult.setKeepCallback(true);
-            this.callbackContext.sendPluginResult(pluginResult);
+            if(this.callbackContext != null)
+                this.callbackContext.sendPluginResult(pluginResult);
         }
         else {
             return false;
@@ -361,7 +365,7 @@ public class InAppBrowser extends CordovaPlugin {
      */
     @Override
     public void onReset() {
-        closeDialog();
+        closeDialog(true);
     }
 
     /**
@@ -389,7 +393,7 @@ public class InAppBrowser extends CordovaPlugin {
      * Stop listener.
      */
     public void onDestroy() {
-        closeDialog();
+        closeDialog(true);
     }
 
     /**
@@ -533,35 +537,36 @@ public class InAppBrowser extends CordovaPlugin {
     /**
      * Closes the dialog
      */
-    public void closeDialog() {
+    public void closeDialog(boolean force) {
         this.cordova.getActivity().runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                final WebView childView = inAppWebView;
-                // The JS protects against multiple calls, so this should happen only when
-                // closeDialog() is called by other native code.
-                if (childView == null) {
-                    return;
-                }
-
-                childView.setWebViewClient(new WebViewClient() {
-                    // NB: wait for about:blank before dismissing
-                    public void onPageFinished(WebView view, String url) {
-                        if (dialog != null && !cordova.getActivity().isFinishing()) {
-                            dialog.dismiss();
-                            dialog = null;
-                        }
+                if(!overrideExit || force) {
+                    final WebView childView = inAppWebView;
+                    // The JS protects against multiple calls, so this should happen only when
+                    // closeDialog() is called by other native code.
+                    if (childView == null) {
+                        return;
                     }
-                });
-                // NB: From SDK 19: "If you call methods on WebView from any thread
-                // other than your app's UI thread, it can cause unexpected results."
-                // http://developer.android.com/guide/webapps/migrating.html#Threads
-                childView.loadUrl("about:blank");
 
+                    childView.setWebViewClient(new WebViewClient() {
+                        // NB: wait for about:blank before dismissing
+                        public void onPageFinished(WebView view, String url) {
+                            if (dialog != null && !cordova.getActivity().isFinishing()) {
+                                dialog.dismiss();
+                                dialog = null;
+                            }
+                        }
+                    });
+                    // NB: From SDK 19: "If you call methods on WebView from any thread
+                    // other than your app's UI thread, it can cause unexpected results."
+                    // http://developer.android.com/guide/webapps/migrating.html#Threads
+                    childView.loadUrl("about:blank");
+                }
                 try {
                     JSONObject obj = new JSONObject();
                     obj.put("type", EXIT_EVENT);
-                    sendUpdate(obj, false);
+                    sendUpdate(obj, !(!overrideExit || force));
                 } catch (JSONException ex) {
                     LOG.d(LOG_TAG, "Should never happen");
                 }
@@ -727,6 +732,10 @@ public class InAppBrowser extends CordovaPlugin {
             if (fullscreenSet != null) {
                 fullscreen = fullscreenSet.equals("yes") ? true : false;
             }
+            String overrideExitSet = features.get(OVERRIDE_EXIT);
+            if (overrideExitSet != null) {
+                overrideExit = overrideExitSet.equals("yes") ? true : false;
+            }
         }
 
         final CordovaWebView thatWebView = this.webView;
@@ -783,7 +792,7 @@ public class InAppBrowser extends CordovaPlugin {
                 _close.setId(Integer.valueOf(id));
                 _close.setOnClickListener(new View.OnClickListener() {
                     public void onClick(View v) {
-                        closeDialog();
+                        closeDialog(false);
                     }
                 });
 

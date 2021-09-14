@@ -77,7 +77,7 @@ static CDVWKInAppBrowser* instance = nil;
     }
     
     // Things are cleaned up in browserExit.
-    [self.inAppBrowserViewController close];
+    [self.inAppBrowserViewController forceClose];
 }
 
 - (BOOL) isSystemUrl:(NSURL*)url
@@ -200,7 +200,7 @@ static CDVWKInAppBrowser* instance = nil;
     }
 
     if (self.inAppBrowserViewController == nil) {
-        self.inAppBrowserViewController = [[CDVWKInAppBrowserViewController alloc] initWithBrowserOptions: browserOptions andSettings:self.commandDelegate.settings];
+        self.inAppBrowserViewController = [[CDVWKInAppBrowserViewController alloc] initWithBrowserOptions: browserOptions andSettings:self.commandDelegate.settings andInstance:self];
         self.inAppBrowserViewController.navigationDelegate = self;
         
         if ([self.viewController conformsToProtocol:@protocol(CDVScreenOrientationDelegate)]) {
@@ -703,12 +703,13 @@ static CDVWKInAppBrowser* instance = nil;
 CGFloat lastReducedStatusBarHeight = 0.0;
 BOOL isExiting = FALSE;
 
-- (id)initWithBrowserOptions: (CDVInAppBrowserOptions*) browserOptions andSettings:(NSDictionary *)settings
+- (id)initWithBrowserOptions: (CDVInAppBrowserOptions*) browserOptions andSettings:(NSDictionary *)settings andInstance:(CDVWKInAppBrowser *) inAppBrowser
 {
     self = [super init];
     if (self != nil) {
         _browserOptions = browserOptions;
         _settings = settings;
+        _inAppBrowser = inAppBrowser;
         self.webViewUIDelegate = [[CDVWKInAppBrowserUIDelegate alloc] initWithTitle:[[NSBundle mainBundle] objectForInfoDictionaryKey:@"CFBundleDisplayName"]];
         [self.webViewUIDelegate setViewController:self];
         
@@ -1069,10 +1070,9 @@ BOOL isExiting = FALSE;
 
 - (UIStatusBarStyle)preferredStatusBarStyle
 {
-    NSString* statusBarStylePreference = [self settingForKey:@"InAppBrowserStatusBarStyle"];
-    if (statusBarStylePreference && [statusBarStylePreference isEqualToString:@"lightcontent"]) {
+    if (_browserOptions.darkmode) {
         return UIStatusBarStyleLightContent;
-    } else if (statusBarStylePreference && [statusBarStylePreference isEqualToString:@"darkcontent"]) {
+    } else if (!_browserOptions.darkmode) {
         if (@available(iOS 13.0, *)) {
             return UIStatusBarStyleDarkContent;
         } else {
@@ -1089,10 +1089,38 @@ BOOL isExiting = FALSE;
 
 - (void)close
 {
+    if (!_browserOptions.overrideexit) {
+        self.currentURL = nil;
+
+        __weak UIViewController* weakSelf = self;
+
+        // Run later to avoid the "took a long time" log message.
+        dispatch_async(dispatch_get_main_queue(), ^{
+            isExiting = TRUE;
+            lastReducedStatusBarHeight = 0.0;
+            if ([weakSelf respondsToSelector:@selector(presentingViewController)]) {
+                [[weakSelf presentingViewController] dismissViewControllerAnimated:YES completion:nil];
+            } else {
+                [[weakSelf parentViewController] dismissViewControllerAnimated:YES completion:nil];
+            }
+        });
+    } else {
+        if (_inAppBrowser.callbackId != nil) {
+            CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK
+                                                          messageAsDictionary:@{@"type":@"exit"}];
+            [pluginResult setKeepCallback:[NSNumber numberWithBool:YES]];
+
+            [_inAppBrowser.commandDelegate sendPluginResult:pluginResult callbackId:_inAppBrowser.callbackId];
+        }
+    }
+}
+
+- (void)forceClose
+{
     self.currentURL = nil;
-    
+
     __weak UIViewController* weakSelf = self;
-    
+
     // Run later to avoid the "took a long time" log message.
     dispatch_async(dispatch_get_main_queue(), ^{
         isExiting = TRUE;

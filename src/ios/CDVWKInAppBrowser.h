@@ -53,6 +53,7 @@
     @private
     CDVInAppBrowserOptions *_browserOptions;
     NSDictionary *_settings;
+    CDVWKInAppBrowser *_inAppBrowser;
 }
 
 @property (nonatomic, strong) IBOutlet WKWebView* webView;
@@ -70,11 +71,12 @@
 @property (nonatomic) NSURL* currentURL;
 
 - (void)close;
+- (void)forceClose;
 - (void)navigateTo:(NSURL*)url;
 - (void)showLocationBar:(BOOL)show;
 - (void)showToolBar:(BOOL)show : (NSString *) toolbarPosition;
 - (void)setCloseButtonTitle:(NSString*)title : (NSString*) colorString : (int) buttonIndex;
 
-- (id)initWithBrowserOptions: (CDVInAppBrowserOptions*) browserOptions andSettings:(NSDictionary*) settings;
+- (id)initWithBrowserOptions: (CDVInAppBrowserOptions*) browserOptions andSettings:(NSDictionary*) settings andInstance:(CDVWKInAppBrowser *) inAppBrowser;
 
 @end
