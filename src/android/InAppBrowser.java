@@ -991,7 +991,11 @@ public class InAppBrowser extends CordovaPlugin {
                         if (fileChooserParams.isCaptureEnabled() && cameraIntent != null) {
                             cordova.startActivityForResult(InAppBrowser.this, cameraIntent, FILECHOOSER_CAMERACODE);
                         } else {
-                            cordova.startActivityForResult(InAppBrowser.this, chooserIntent, FILECHOOSER_REQUESTCODE);
+                            // Create File Chooser Intent
+                            Intent content = new Intent(Intent.ACTION_GET_CONTENT);
+                            content.addCategory(Intent.CATEGORY_OPENABLE);
+                            content.setType("*/*");
+                             cordova.startActivityForResult(InAppBrowser.this, Intent.createChooser(content, "Select File"), FILECHOOSER_REQUESTCODE);
                         }
 
                         return true;
@@ -1169,31 +1173,24 @@ public class InAppBrowser extends CordovaPlugin {
 
         switch (requestCode) {
             case FILECHOOSER_REQUESTCODE:
-                Uri[] result = null;
-                if (intent.getClipData() != null) {
-                    // handle multiple-selected files
-                    final int numSelectedFiles = intent.getClipData().getItemCount();
-                    result = new Uri[numSelectedFiles];
-                    for (int i = 0; i < numSelectedFiles; i++) {
-                        result[i] = intent.getClipData().getItemAt(i).getUri();
-                        LOG.d(LOG_TAG, "Receive file chooser URL: " + result[i]);
-                    }
-                } else if (intent.getData() != null) {
-                    result = WebChromeClient.FileChooserParams.parseResult(resultCode, intent);
-                    LOG.d(LOG_TAG, "Receive file chooser URL: " + result);
-                }
-                mUploadCallback.onReceiveValue(result);
+                mUploadCallback.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(resultCode, intent));
                 mUploadCallback = null;
-                break;
+                return;
             case FILECHOOSER_CAMERACODE:
                 if (resultCode == Activity.RESULT_OK) {
                     mUploadCallback.onReceiveValue(new Uri[]{Uri.fromFile(cameraCaptureFile)});
+                    mUploadCallback = null;
                     cameraCaptureFile = null;
+                    return;
                 } else if (cameraCaptureFile != null) {
                     if (cameraCaptureFile.exists()) {
                         cameraCaptureFile.delete();
                     }
                 }
+
+
+                mUploadCallback.onReceiveValue(WebChromeClient.FileChooserParams.parseResult(resultCode, intent));
+                mUploadCallback = null;
                 break;
             default:
                 super.onActivityResult(requestCode, resultCode, intent);
